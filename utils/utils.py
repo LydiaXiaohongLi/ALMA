@@ -265,9 +265,12 @@ def load_mmt_dataset(pairs, data_args, model_args, training_args, logger):
         src_lang = pair.split("-")[0]
         tgt_lang = pair.split("-")[1]
 
-        # The directory is always "xxen", e.g., deen
-        first_lang = src_lang if src_lang != "en" else tgt_lang
-        second_lang = "en"
+        # # The directory is always "xxen", e.g., deen
+        # first_lang = src_lang if src_lang != "en" else tgt_lang
+        # second_lang = "en"
+        # load data if directory optionally contains enxx, LXH
+        first_lang = src_lang
+        second_lang = tgt_lang
         pair_dir = first_lang + second_lang
             
         h_suffix = f"-{data_args.suffix}" if data_args.suffix else ""
