@@ -581,12 +581,13 @@ def load_tokenizer(data_args, model_args, training_args, logger):
     return tokenizer
 
 def get_preprocessed_data(train_raw_data, valid_raw_data, test_raw_data, pairs, tokenizer, shots_eval_dict, data_args, training_args, model_args):
-    def tokenize_function_train_eval_left_pad(examples):
+    def tokenize_function_train_eval_left_pad(examples, lg_pair=None):
+        # Added lg_pair, when data directory optionally contains enxx, create the translation direction pair accordingly from data direectory, LXH
         inputs = []
         prompts = []
         for ex in examples["translation"]:
             source_lang, target_lang = list(ex.keys())
-            if f"{source_lang}-{target_lang}" in pairs:
+            if (lg_pair is None and f"{source_lang}-{target_lang}" in pairs)  or (lg_pair is not None and lg_pair==f"{source_lang}-{target_lang}"):
                 prompt = get_prompt(source_lang, target_lang, ex)
                 if model_args.chat_style:
                     chat_style_prompt = [{"role": "user", "content": prompt}]
@@ -601,7 +602,7 @@ def get_preprocessed_data(train_raw_data, valid_raw_data, test_raw_data, pairs, 
                 prompts.append(prompt)
                 inputs.append(input_text)
 
-            if f"{target_lang}-{source_lang}" in pairs:
+            if (lg_pair is None and f"{target_lang}-{source_lang}" in pairs)  or (lg_pair is not None and lg_pair==f"{target_lang}-{source_lang}"):
                 prompt = get_prompt(target_lang, source_lang, ex)
                 if model_args.chat_style:
                     chat_style_prompt = [{"role": "user", "content": prompt}]
@@ -693,16 +694,17 @@ def get_preprocessed_data(train_raw_data, valid_raw_data, test_raw_data, pairs, 
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
-    def tokenize_function_train_eval_right_pad(examples):
+    def tokenize_function_train_eval_right_pad(examples, lg_pair=None):
+        # Added lg_pair, when data directory optionally contains enxx, create the translation direction pair accordingly from data direectory, LXH
         inputs = []
         prompts = []
         for ex in examples["translation"]:
             source_lang, target_lang = list(ex.keys())
-            if f"{source_lang}-{target_lang}" in pairs:
+            if (lg_pair is None and f"{source_lang}-{target_lang}" in pairs) or (lg_pair is not None and lg_pair==f"{source_lang}-{target_lang}"):
                 prompt = get_prompt(source_lang, target_lang, ex)
                 prompts.append(prompt)
                 inputs.append(prompt + ex[target_lang])
-            if f"{target_lang}-{source_lang}" in pairs:
+            if (lg_pair is None and f"{target_lang}-{source_lang}" in pairs) or (lg_pair is not None and lg_pair==f"{target_lang}-{source_lang}"):
                 prompt = get_prompt(target_lang, source_lang, ex)
                 prompts.append(prompt)
                 inputs.append(prompt + ex[source_lang])
@@ -887,7 +889,18 @@ def get_preprocessed_data(train_raw_data, valid_raw_data, test_raw_data, pairs, 
                     max_train_samples = min(len(train_dataset), data_args.max_train_samples)
                     train_dataset = train_dataset.select(range(max_train_samples))
                 with training_args.main_process_first(desc="train dataset map pre-processing"):
-                    if not data_args.streaming:
+                    # when data directory optionally contains enxx, create the translation direction pair accordingly from data direectory, LXH
+                    if len(train_raw_data["mmt"].keys()) == len(pairs):
+                        train_dataset = train_dataset.map(
+                            mmt_train_eval_tok_func,
+                            fn_kwargs = {'lg_pair': lg_pair},
+                            batched=True,
+                            num_proc=data_args.preprocessing_num_workers,
+                            remove_columns=column_names_mmt,
+                            load_from_cache_file=not data_args.overwrite_cache,
+                            desc="Running tokenizer on MMT train dataset",
+                        )
+                    elif not data_args.streaming:
                         train_dataset = train_dataset.map(
                             mmt_train_eval_tok_func,
                             batched=True,
