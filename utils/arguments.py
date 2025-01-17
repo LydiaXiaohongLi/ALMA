@@ -327,6 +327,12 @@ class DataTrainingArguments:
             "help": "The scorer of CPO, e.g., using xcomet, kiwi, or both of them (xcomet-kiwi) for CPO training"
         },
     )
+    preprocessed_cpo_data: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether the cpo data is already preprocessed into prompt, chosen, rejected format."
+        },
+    )
 
 
     # predict_source_lang: str = field(default="", metadata={"help": "The source language for testing"})

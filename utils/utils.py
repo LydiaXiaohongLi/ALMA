@@ -1143,15 +1143,16 @@ def preprocess_cpo_data(train_raw_data, valid_raw_data, test_raw_data, pairs, to
                     train_dataset = train_dataset.select(range(max_train_samples))
                 with training_args.main_process_first(desc="CPO train dataset map pre-processing"):
                     if not data_args.streaming:
-                        train_dataset = train_dataset.map(
-                            cpo_prompt_function,
-                            batched=True,
-                            batch_size=1,
-                            num_proc=data_args.preprocessing_num_workers,
-                            remove_columns=["translation"],
-                            load_from_cache_file=not data_args.overwrite_cache,
-                            desc="Running CPO preprocessing",
-                        )
+                        if not data_args.preprocessed_cpo_data:
+                            train_dataset = train_dataset.map(
+                                cpo_prompt_function,
+                                batched=True,
+                                batch_size=1,
+                                num_proc=data_args.preprocessing_num_workers,
+                                remove_columns=["translation"],
+                                load_from_cache_file=not data_args.overwrite_cache,
+                                desc="Running CPO preprocessing",
+                            )
                     else:
                         train_dataset = train_dataset.map(
                             cpo_prompt_function,
